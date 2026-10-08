@@ -50,16 +50,20 @@ A mod is a Rust library crate that implements `NativeMod` from the `ironpumpkin-
 registers it with `register_mod!`. See `examples/modpack/mods/hello-mod` in the IronPumpkin
 repository.
 
-- From git: add a `[mods.<name>]` table with `git` and `rev`. The mod crate depends on the
-  IronPumpkin crates by the IronPumpkin git URL, for example
+`ironpumpkin-mods` is the only IronPumpkin crate a mod depends on. It re-exports the server types
+a mod uses (`ironpumpkin_mods::command`, `::event`, `::text`, `::permission`, `::world` and the
+others in its crate documentation) and the pumpkin crates themselves.
+
+- From git: add a `[mods.<name>]` table with `git` and `rev`. The mod crate depends on
+  `ironpumpkin-mods` by the IronPumpkin git URL, for example
   `ironpumpkin-mods = { git = "https://github.com/EdenNetworkItalia/IronPumpkin" }`. The build
   points these dependencies at the IronPumpkin checkout of the pack, so the binary contains one
   copy of the server.
 - From a path: put the crate in `mods/<name>/` and add a `[mods.<name>]` table with `path`. The
-  crate depends on the IronPumpkin crates by the git URL, like a git mod, or by path into the
+  crate depends on `ironpumpkin-mods` by the git URL, like a git mod, or by path into the
   checkout, for example `ironpumpkin-mods = { path = "../../.ironpumpkin/crates/ironpumpkin-mods" }`.
-- From crates.io: add a `[mods.<name>]` table with `version`. The IronPumpkin crates are not on
-  crates.io, so the mod crate depends on them by the git URL, never by a crates.io version.
+- From crates.io: add a `[mods.<name>]` table with `version`. `ironpumpkin-mods` is not on
+  crates.io, so the mod crate depends on it by the git URL, never by a crates.io version.
 
 The binary must contain exactly one copy of each server crate: the mods register in
 `ironpumpkin-mods`, and a second copy is one the server never reads. The build fails when a server
