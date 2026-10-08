@@ -3,12 +3,12 @@
 
 [pack]
 # The binary name and the prefix of the release assets.
-name = "example-pack"
+name = "pack-test"
 
 [ironpumpkin]
 git = "https://github.com/EdenNetworkItalia/IronPumpkin"
 # A full 40-character commit hash.
-commit = "64661ef1796a891ce586bd163097e3d49de0ed4a"
+commit = "b83ce68e593d7e8e13ee7dbf3ccdf29271d493d3"
 # Set to true to apply patches that a mod wrote for another IronPumpkin commit.
 allow-drift = false
 
@@ -17,6 +17,6 @@ allow-drift = false
 #   git = "https://github.com/someone/my-mod", rev = "<commit or tag>"
 #   version = "1.2"                                       (from crates.io)
 
-# The example mod of the IronPumpkin repository, from the checkout that `cargo xtask` fetches.
-[mods.hello-mod]
-path = ".ironpumpkin/examples/modpack/mods/hello-mod"
+# WITS, ported from the NeoForge mod of the same id.
+[mods.wits]
+path = "mods/wits"
