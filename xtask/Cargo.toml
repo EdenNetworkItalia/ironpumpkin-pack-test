@@ -1,0 +1,13 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+description = "Builds the modpack binary from modpack.toml."
+edition = "2024"
+rust-version = "1.96"
+license = "GPL-3.0"
+publish = false
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "1.1"

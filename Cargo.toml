@@ -1,0 +1,5 @@
+# The build tool only. The pack binary in `bin/` is its own workspace: `cargo xtask` generates its
+# manifest from `modpack.toml`.
+[workspace]
+resolver = "3"
+members = ["xtask"]

@@ -1,0 +1,22 @@
+# The modpack: the IronPumpkin commit to build and the native mods to compile into it.
+# `cargo xtask check` validates this file and the mods' patches; `cargo xtask build` builds.
+
+[pack]
+# The binary name and the prefix of the release assets.
+name = "example-pack"
+
+[ironpumpkin]
+git = "https://github.com/EdenNetworkItalia/IronPumpkin"
+# A full 40-character commit hash.
+commit = "64661ef1796a891ce586bd163097e3d49de0ed4a"
+# Set to true to apply patches that a mod wrote for another IronPumpkin commit.
+allow-drift = false
+
+# One table per mod. The key is the package name of the mod crate. Give exactly one source:
+#   path = "mods/my-mod"                                  (relative to this directory)
+#   git = "https://github.com/someone/my-mod", rev = "<commit or tag>"
+#   version = "1.2"                                       (from crates.io)
+
+# The example mod of the IronPumpkin repository, from the checkout that `cargo xtask` fetches.
+[mods.hello-mod]
+path = ".ironpumpkin/examples/modpack/mods/hello-mod"

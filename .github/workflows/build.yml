@@ -1,0 +1,96 @@
+name: Build modpack
+
+on:
+  push:
+    tags:
+      - "v*"
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: Check the pack
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup update stable && rustup default stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: debug-${{ hashFiles('modpack.toml') }}
+      - run: cargo xtask check
+      - name: Check that the committed lock file matches the pack
+        run: |
+          STATUS="$(git status --porcelain -- bin/Cargo.lock bin/Cargo.lock.commit)"
+          if [ -n "$STATUS" ]; then
+            echo "$STATUS"
+            echo "Run \`cargo xtask check\` and commit bin/Cargo.lock and bin/Cargo.lock.commit."
+            exit 1
+          fi
+      - run: cargo xtask build --debug
+
+  build:
+    name: Build (${{ matrix.name }})
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x86_64
+            os: ubuntu-latest
+            suffix: x86_64-linux
+            ext: ""
+          - name: Windows x86_64
+            os: windows-latest
+            suffix: x86_64-windows
+            ext: .exe
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup update stable && rustup default stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ hashFiles('modpack.toml') }}
+      - run: cargo xtask build
+      - name: Prepare the asset
+        id: asset
+        shell: bash
+        run: |
+          PACK="$(cargo xtask name)"
+          ASSET="${PACK}-${GITHUB_REF_NAME}-${{ matrix.suffix }}${{ matrix.ext }}"
+          mkdir -p dist
+          cp "target/release/${PACK}${{ matrix.ext }}" "dist/${ASSET}"
+          echo "name=${ASSET}" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.asset.outputs.name }}
+          path: dist/${{ steps.asset.outputs.name }}
+
+  release:
+    name: Publish the release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist/
+          merge-multiple: true
+      - name: Write SHA256SUMS
+        working-directory: dist
+        run: sha256sum -- * > SHA256SUMS && cat SHA256SUMS
+      - uses: softprops/action-gh-release@v3
+        with:
+          name: ${{ github.ref_name }}
+          files: dist/*
+          generate_release_notes: true
