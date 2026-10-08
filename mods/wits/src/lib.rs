@@ -1,12 +1,14 @@
 //! Port of WITS (What Is This Structure) by TelepathicGrunt. `/wits` lists the structures at the
 //! caller's position, `/witsop <dimension> <location>` the structures at any position.
 
+use std::sync::Arc;
+
 use ironpumpkin_mods::{
     ModInit, NativeMod,
     command::{
         argument_builder::{ArgumentBuilder, argument, command},
         argument_types::{coordinates::vec3::Vec3ArgumentType, dimension::DimensionArgument},
-        context::command_context::CommandContext,
+        context::{command_context::CommandContext, command_source::CommandSource},
         node::{CommandExecutor, CommandExecutorResult},
     },
     math::position::BlockPos,
@@ -74,7 +76,7 @@ impl CommandExecutor for WitsExecutor {
             .map_or(BlockPos::new(0, 0, 0), |player| {
                 BlockPos::floored_v(player.position())
             });
-        list_structures_at(context, context.source.world(), pos, true);
+        list_structures_at(context, context.source.world().clone(), pos, true);
         Ok(1)
     }
 }
@@ -85,16 +87,17 @@ impl CommandExecutor for WitsOpExecutor {
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
         let world = DimensionArgument::get_dimension(context, "dimension")?;
         let pos = BlockPos::floored_v(Vec3ArgumentType::get_vector3(context, "location")?);
-        list_structures_at(context, &world, pos, false);
+        list_structures_at(context, world, pos, false);
         Ok(1)
     }
 }
 
 /// The structures whose start bounding box contains `pos`, as `StructureManager.startsForStructure`
 /// and `BoundingBox.isInside` select them in the original.
-fn structures_at(world: &World, pos: BlockPos) -> Vec<&'static str> {
+async fn structures_at(world: &World, pos: BlockPos) -> Vec<&'static str> {
     let mut names: Vec<&'static str> = world
         .structure_starts_at(&pos)
+        .await
         .into_iter()
         .map(|start| start.structure.to_name())
         .collect();
@@ -102,23 +105,34 @@ fn structures_at(world: &World, pos: BlockPos) -> Vec<&'static str> {
     names
 }
 
+/// The lookup may load or generate chunks, so it runs in a server task and answers when it ends.
 fn list_structures_at(
     context: &CommandContext,
-    world: &World,
+    world: Arc<World>,
     pos: BlockPos,
     caller_position: bool,
 ) {
-    let structures = structures_at(world, pos);
-    let broadcast = !context.source.executed_by_player();
+    let source = context.source.clone();
+    context.source.server().spawn_task(async move {
+        let structures = structures_at(&world, pos).await;
+        send_structures(&source, pos, caller_position, structures);
+    });
+}
+
+fn send_structures(
+    source: &CommandSource,
+    pos: BlockPos,
+    caller_position: bool,
+    structures: Vec<&'static str>,
+) {
+    let broadcast = !source.executed_by_player();
     if structures.is_empty() {
         let text = if caller_position {
             "There's no structures at your location."
         } else {
             "There's no structures at the location."
         };
-        context
-            .source
-            .send_feedback(TextComponent::text(text), broadcast);
+        source.send_feedback(TextComponent::text(text), broadcast);
         return;
     }
 
@@ -141,5 +155,5 @@ fn list_structures_at(
             .add_child(TextComponent::text("\n -").color_named(NamedColor::White))
             .add_child(TextComponent::copy_on_click_text(key).color_named(NamedColor::Gold));
     }
-    context.source.send_feedback(message, broadcast);
+    source.send_feedback(message, broadcast);
 }

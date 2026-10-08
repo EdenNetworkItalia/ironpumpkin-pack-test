@@ -22,15 +22,11 @@ the caller is not a player, as the original does.
 | `Commands.hasPermission(LEVEL_ALL)`, `LEVEL_GAMEMASTERS` | `ModInit::register_permission` with `PermissionDefault::Allow` and `PermissionDefault::Op(PermissionLvl::Two)` |
 | `DimensionArgument.dimension()`, `DimensionArgument.getDimension` | `DimensionArgument`, `DimensionArgument::get_dimension` |
 | `Vec3Argument.vec3()` | `Vec3ArgumentType::Default` |
-| `ServerLevel.structureManager().startsForStructure(chunk, s -> true)` and `BoundingBox.isInside` | `World::structure_starts_at` |
+| `ServerLevel.structureManager().startsForStructure(chunk, s -> true)` and `BoundingBox.isInside` | `World::structure_starts_at`, awaited in a `Server::spawn_task` task because it can load chunks |
 | `ComponentUtils.copyOnClickText` | `TextComponent::copy_on_click_text` |
 
 ## Unsupported
 
-- Positions in unloaded chunks. `World::structure_starts_at` reads loaded chunks only, so
-  `/witsop` answers "no structures" for a position whose chunk is not loaded. After a restart, a
-  structure is found only when the chunk that owns its start is loaded too. Vanilla loads both
-  chunks.
 - Worlds that vanilla opens after IronPumpkin generated them. IronPumpkin saves the piece boxes
   but not the jigsaw piece data, so vanilla treats villages, outposts, bastions, ancient cities,
   trail ruins and trial chambers in those chunks as invalid.
