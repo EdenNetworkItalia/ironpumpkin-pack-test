@@ -7,12 +7,5 @@ rust-version = "1.96"
 license = "GPL-3.0"
 publish = false
 
-[package.metadata.ironpumpkin]
-commit = "b83ce68e593d7e8e13ee7dbf3ccdf29271d493d3"
-
 [dependencies]
 ironpumpkin-mods = { path = "../../.ironpumpkin/crates/ironpumpkin-mods" }
-pumpkin-core = { path = "../../.ironpumpkin/crates/pumpkin-core" }
-pumpkin-data = { path = "../../.ironpumpkin/crates/pumpkin-data" }
-pumpkin-macros = { path = "../../.ironpumpkin/crates/pumpkin-macros" }
-pumpkin-util = { path = "../../.ironpumpkin/crates/pumpkin-util" }

@@ -9,9 +9,9 @@ A native IronPumpkin port of [WITS (What Is This Structure)](https://github.com/
 | `witsop <dimension> <location>` | `wits:command.witsop` | operators of level 2 (as the original) | the structures at `<location>` in `<dimension>` |
 
 The answer is "There's no structures at your location." (or "at the location."), or
-"Structure(s) at your location:" followed by one structure id per line, in gold, copied to the
-clipboard on click. The server sends the answer to the operators too when the caller is not a
-player, as the original does.
+"Structure(s) at your location:" followed by one structure id per line, green in gold square
+brackets, copied to the clipboard on click. The server sends the answer to the operators too when
+the caller is not a player, as the original does.
 
 ## Mapping from the NeoForge mod
 
@@ -20,23 +20,20 @@ player, as the original does.
 | `@Mod("wits")` | `impl NativeMod for Wits`, `register_mod!(Wits)` |
 | `NeoForge.EVENT_BUS.addListener(RegisterCommandsEvent)` | `ModInit::register_command` in `NativeMod::init` |
 | `Commands.hasPermission(LEVEL_ALL)`, `LEVEL_GAMEMASTERS` | `ModInit::register_permission` with `PermissionDefault::Allow` and `PermissionDefault::Op(PermissionLvl::Two)` |
-| `DimensionArgument.dimension()` | `ResourceKeyArgument` on the `minecraft:dimension` registry |
+| `DimensionArgument.dimension()`, `DimensionArgument.getDimension` | `DimensionArgument`, `DimensionArgument::get_dimension` |
 | `Vec3Argument.vec3()` | `Vec3ArgumentType::Default` |
-| `ServerLevel.structureManager().startsForStructure(chunk, s -> true)` and `BoundingBox.isInside` | `GlobalStructureCache::structure_starts()` (added by the patch) filtered by `BlockBox::contains_pos` |
-| `ComponentUtils.copyOnClickText` | `ClickEvent::CopyToClipboard`, `chat.copy.click` hover and insertion |
-
-## Patch
-
-`patches/structure-starts-accessor.patch` adds a read accessor for the structure starts of the
-world generator. `patches/structure-starts-accessor.md` gives the justification. The patch is bound
-to the IronPumpkin commit in `[package.metadata.ironpumpkin] commit` of `Cargo.toml`.
+| `ServerLevel.structureManager().startsForStructure(chunk, s -> true)` and `BoundingBox.isInside` | `World::structure_starts_at` |
+| `ComponentUtils.copyOnClickText` | `TextComponent::copy_on_click_text` |
 
 ## Unsupported
 
-- Structures in chunks that an earlier server run generated. IronPumpkin does not save structure
-  starts in the chunk data and does not rebuild them when it loads a chunk, so the port finds only
-  the structures that the generator computed (or that `/locate` resolved) since the server started.
-  Vanilla reads them from the `structures` tag of the chunk.
+- Positions in unloaded chunks. `World::structure_starts_at` reads loaded chunks only, so
+  `/witsop` answers "no structures" for a position whose chunk is not loaded. After a restart, a
+  structure is found only when the chunk that owns its start is loaded too. Vanilla loads both
+  chunks.
+- Worlds that vanilla opens after IronPumpkin generated them. IronPumpkin saves the piece boxes
+  but not the jigsaw piece data, so vanilla treats villages, outposts, bastions, ancient cities,
+  trail ruins and trial chambers in those chunks as invalid.
 - Structures from data packs. IronPumpkin generates only the vanilla structures, so every id is in
   the `minecraft` namespace.
 - Flat worlds. The IronPumpkin flat generator has no structure cache, so the answer is always

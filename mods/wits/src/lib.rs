@@ -1,36 +1,25 @@
 //! Port of WITS (What Is This Structure) by TelepathicGrunt. `/wits` lists the structures at the
 //! caller's position, `/witsop <dimension> <location>` the structures at any position.
 
-use std::borrow::Cow;
-
-use ironpumpkin_mods::{ModInit, NativeMod, register_mod};
-use pumpkin_core::{
+use ironpumpkin_mods::{
+    ModInit, NativeMod,
     command::{
         argument_builder::{ArgumentBuilder, argument, command},
-        argument_types::{coordinates::vec3::Vec3ArgumentType, resource_key::ResourceKeyArgument},
+        argument_types::{coordinates::vec3::Vec3ArgumentType, dimension::DimensionArgument},
         context::command_context::CommandContext,
-        errors::error_types::CommandErrorType,
         node::{CommandExecutor, CommandExecutorResult},
     },
-    world::World,
-};
-use pumpkin_data::translation::java::{CHAT_COORDINATES, CHAT_COPY_CLICK};
-use pumpkin_macros::translate_cross;
-use pumpkin_util::{
-    PermissionLvl,
-    identifier::Identifier,
     math::position::BlockPos,
-    permission::{Permission, PermissionDefault},
-    text::{TextComponent, click::ClickEvent, color::NamedColor, hover::HoverEvent},
+    permission::{Permission, PermissionDefault, PermissionLvl},
+    pumpkin_data::translation::java::CHAT_COORDINATES,
+    register_mod,
+    text::{TextComponent, color::NamedColor, translate_cross},
+    world::World,
 };
 
 const ID: &str = "wits";
 const WITS_DESCRIPTION: &str = "Lists the structures at your location.";
 const WITSOP_DESCRIPTION: &str = "Lists the structures at a location in a dimension.";
-
-static DIMENSION_REGISTRY: &Identifier = &Identifier::vanilla_static("dimension");
-static INVALID_DIMENSION: CommandErrorType<1> =
-    CommandErrorType::new("argument.dimension.invalid", "argument.dimension.invalid");
 
 struct Wits;
 
@@ -64,7 +53,7 @@ impl NativeMod for Wits {
         );
         cx.register_command(
             command("witsop", WITSOP_DESCRIPTION).then(
-                argument("dimension", ResourceKeyArgument(DIMENSION_REGISTRY))
+                argument("dimension", DimensionArgument)
                     .then(argument("location", Vec3ArgumentType::Default).executes(WitsOpExecutor)),
             ),
             "command.witsop",
@@ -94,23 +83,9 @@ struct WitsOpExecutor;
 
 impl CommandExecutor for WitsOpExecutor {
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
-        let dimension = ResourceKeyArgument::get_registry_key(
-            context,
-            "dimension",
-            DIMENSION_REGISTRY,
-            &INVALID_DIMENSION,
-        )?
-        .identifier
-        .to_string();
-        let worlds = context.source.server().worlds.load();
-        let world = worlds
-            .iter()
-            .find(|world| world.dimension.minecraft_name == dimension)
-            .ok_or_else(|| {
-                INVALID_DIMENSION.create_without_context(TextComponent::text(dimension.clone()))
-            })?;
+        let world = DimensionArgument::get_dimension(context, "dimension")?;
         let pos = BlockPos::floored_v(Vec3ArgumentType::get_vector3(context, "location")?);
-        list_structures_at(context, world, pos, false);
+        list_structures_at(context, &world, pos, false);
         Ok(1)
     }
 }
@@ -118,15 +93,10 @@ impl CommandExecutor for WitsOpExecutor {
 /// The structures whose start bounding box contains `pos`, as `StructureManager.startsForStructure`
 /// and `BoundingBox.isInside` select them in the original.
 fn structures_at(world: &World, pos: BlockPos) -> Vec<&'static str> {
-    let world_gen = world.level.world_gen.load_full();
-    let Some(cache) = world_gen.global_structure_cache() else {
-        return Vec::new();
-    };
-    let mut names: Vec<&'static str> = cache
-        .structure_starts()
+    let mut names: Vec<&'static str> = world
+        .structure_starts_at(&pos)
         .into_iter()
-        .filter(|(_, start)| start.get_bounding_box().contains_pos(&pos.0))
-        .map(|(structure, _)| structure.to_name())
+        .map(|start| start.structure.to_name())
         .collect();
     names.sort_unstable();
     names
@@ -169,20 +139,7 @@ fn list_structures_at(
         let key = format!("minecraft:{name}");
         message = message
             .add_child(TextComponent::text("\n -").color_named(NamedColor::White))
-            .add_child(copy_on_click(key).color_named(NamedColor::Gold));
+            .add_child(TextComponent::copy_on_click_text(key).color_named(NamedColor::Gold));
     }
     context.source.send_feedback(message, broadcast);
-}
-
-/// `ComponentUtils.copyOnClickText`: the text, copied to the clipboard on click.
-fn copy_on_click(text: String) -> TextComponent {
-    TextComponent::text(text.clone())
-        .click_event(ClickEvent::CopyToClipboard {
-            value: Cow::Owned(text.clone()),
-        })
-        .hover_event(HoverEvent::show_text(translate_cross!(
-            CHAT_COPY_CLICK,
-            CHAT_COPY_CLICK
-        )))
-        .insertion(text)
 }
